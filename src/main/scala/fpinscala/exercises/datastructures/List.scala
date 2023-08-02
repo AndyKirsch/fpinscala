@@ -59,8 +59,26 @@ object List: // `List` companion object. Contains functions for creating and wor
 
   def length[A](l: List[A]): Int = ???
 
-  def foldLeft[A,B](l: List[A], acc: B, f: (B, A) => B): B = ???
+  def foldLeft[A,B](l: List[A], acc: B, f: (B, A) => B): B = {
+    ???
+  }
 
+  def theirs[A, B](as: List[A], z: B, f: (A, B) => B): B =
+    List.foldLeft[A,B=>B](as, (b: B) => b, (g: B => B, a: A) => b => g(f(a, b)))(z)
+def foldRight[A, BPrime](as: List[A], z: BPrime, f: (A, BPrime) => BPrime): BPrime = { // Utility functions
+
+  def acc(b: BPrime): BPrime = b
+
+  def h(g: BPrime => BPrime, a: A): BPrime => BPrime = {
+    def internal(b: BPrime): BPrime = {
+      f(a, g(b))
+    }
+
+    internal
+  }
+
+  List.foldLeft[A,BPrime=>BPrime](as, acc, h).apply(z)
+}
   def sumViaFoldLeft(ns: List[Int]): Int = ???
 
   def productViaFoldLeft(ns: List[Double]): Double = ???
