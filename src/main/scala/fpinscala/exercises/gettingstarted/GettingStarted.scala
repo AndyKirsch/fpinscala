@@ -114,16 +114,12 @@ object PolymorphicFunctions:
   // Instead of hard-coding `String`, we take a type `A` as a parameter.
   // And instead of hard-coding an equality check for a given key,
   // we take a function with which to test each element of the array.
-  def findFirst[A](as: Array[A], p: A => Boolean): Int =
-    @annotation.tailrec
-    def loop(n: Int): Int =
-      if n >= as.length then -1
-      // If the function `p` matches the current element,
-      // we've found a match and we return its index in the array.
-      else if p(as(n)) then n
-      else loop(n + 1)
-
-    loop(0)
+  def findFirst[A](as: Array[A], p: A => Boolean): Int = {
+    as match {
+      case Array(t) => 3
+      case _ => 4
+    }
+  }
 
   // Exercise 2: Implement a polymorphic function to check whether
   // an `Array[A]` is sorted
@@ -138,8 +134,21 @@ object PolymorphicFunctions:
   // Polymorphic functions are often so constrained by their type
   // that they only have one implementation! Here's an example:
 
-  def partial1[A,B,C](a: A, f: (A, B) => C): B => C =
-    (b: B) => f(a, b)
+  def partial1[A,B,C](a: A, f: (A, B) => C): B => C = {
+    //(b: B) => f(a, b)
+    def expanded(b:B): C = {
+      f(a, b)
+    }
+    expanded
+  }
+
+  def currencyString(currency: String, amount: Int): String =  s"$currency$amount"
+
+  val oneHundredWhatever =  partial1(100, (amount, currency) => currencyString(currency, amount))
+
+  val formatToUsd: Int => String = partial1("$", currencyString)
+  val result: String = partial1[String, Int, String]("$", (currency, amount) => s"$currency$amount")(100)
+  formatToUsd(100)
 
   // Exercise 3: Implement `curry`.
 
