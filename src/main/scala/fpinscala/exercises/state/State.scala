@@ -26,27 +26,64 @@ object RNG:
       val (a, rng2) = s(rng)
       (f(a), rng2)
 
-  def nonNegativeInt(rng: RNG): (Int, RNG) = ???
+  def nonNegativeInt(rng: RNG): (Int, RNG) =
+    val (raw, next) = rng.nextInt
+    (Math.abs(raw), next)
 
-  def double(rng: RNG): (Double, RNG) = ???
+  def doubleOrig(rng: RNG): (Double, RNG) =
+    val (raw, next) = RNG.nonNegativeInt(rng)
+    val scaling = raw
+    (scaling, next)
 
-  def intDouble(rng: RNG): ((Int,Double), RNG) = ???
+  def double(rng: RNG): (Double, RNG) = RNG.map(nonNegativeInt) { _.toDouble / Int.MaxValue }(rng)
 
-  def doubleInt(rng: RNG): ((Double,Int), RNG) = ???
+  def intDouble(rng: RNG): ((Int,Double), RNG) =
+    val (int, intermediate) = rng.nextInt
+    val (double, next) = RNG.double(intermediate)
+    ((int, double), next)
 
-  def double3(rng: RNG): ((Double,Double,Double), RNG) = ???
+  def doubleInt(rng: RNG): ((Double,Int), RNG) =
+    val (int, intermediate) = rng.nextInt
+    val (double, next) = RNG.double(intermediate)
+    ((double, int), next)
 
-  def ints(count: Int)(rng: RNG): (List[Int], RNG) = ???
+  def double3(rng: RNG): ((Double,Double,Double), RNG) =
+    val (first, intermediate1) = RNG.double(rng)
+    val (second, intermediate2) = RNG.double(intermediate1)
+    val (third, next) = RNG.double(intermediate2)
+    ((first, second, third), next)
 
-  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+  def ints(count: Int)(rng: RNG): (List[Int], RNG) =
+    if (count <= 0)
+      (Nil, rng)
+    else
+      val (int, next) = rng.nextInt
+      val (tail, outputRNG) = ints(count - 1)(next)
+      (int:: tail, outputRNG)
 
-  def sequence[A](rs: List[Rand[A]]): Rand[List[A]] = ???
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng =>
+    val (a, intermediate) = ra(rng)
+    val (b, next) = rb(intermediate)
+    (f(a,b), next)
 
-  def flatMap[A, B](r: Rand[A])(f: A => Rand[B]): Rand[B] = ???
+  def sequence[A](rs: List[Rand[A]]): Rand[List[A]] =
+    rs.foldRight((x => (Nil, x)): Rand[List[A]]) { (a, acc) =>
+      map2(a, acc) { (item, list) =>
+        item :: list
+      }
+    }
 
-  def mapViaFlatMap[A, B](r: Rand[A])(f: A => B): Rand[B] = ???
+  def flatMap[A, B](r: Rand[A])(f: A => Rand[B]): Rand[B] = rnd =>
+    val (a, next) = r(rnd)
+    f(a)(next)
 
-  def map2ViaFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+  def mapViaFlatMap[A, B](r: Rand[A])(f: A => B): Rand[B] = flatMap(r) {a =>
+    rnd => (f(a), rnd)
+  }
+
+  def map2ViaFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = flatMap(ra) { a =>
+    mapViaFlatMap(rb) { b => f(a, b) }
+  }
 
 opaque type State[S, +A] = S => (A, S)
 
