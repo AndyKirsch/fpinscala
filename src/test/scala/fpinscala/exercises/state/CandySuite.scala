@@ -87,6 +87,6 @@ class CandySuite extends PropSuite:
 
   test("Candy: empty inputs")(genMachine): machine =>
     val ((coins, candies), machine1): ((Int, Int), Machine) = simulateMachine(List.empty[Input]).run(machine)
-    assertEquals(candies, machine.candies)
-    assertEquals(coins, machine.coins)
-    assertEquals(machine1, machine) // Nothing changed
+    assertEquals(candies, machine.candies, s"$machine, $machine1")
+    assertEquals(coins, machine.coins, s"$machine, $machine1")
+    assertEquals(machine1, machine, s"$machine, $machine1") // Nothing changed

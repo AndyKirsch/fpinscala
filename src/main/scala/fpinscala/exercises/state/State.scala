@@ -122,4 +122,13 @@ enum Input:
 case class Machine(locked: Boolean, candies: Int, coins: Int)
 
 object Candy:
-  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = ???
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
+    State((machine: Machine) =>
+      val finalMachine = inputs.foldLeft(machine) { (state, input) =>
+        (state, input) match
+          case (m @ Machine(_, 0, _), _) => m
+          case (m @ Machine(true, _, _), Input.Coin) => m.copy(locked = false, coins = m.coins + 1)
+          case (m @ Machine(false, _, _), Input.Turn) => m.copy(locked =  true, candies = m.candies - 1)
+          case _ => state
+      }
+      ((finalMachine.coins, finalMachine.candies), finalMachine))
