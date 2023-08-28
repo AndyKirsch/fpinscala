@@ -35,6 +35,7 @@ object Nonblocking:
     def eval(es: ExecutorService)(r: => Unit): Unit =
       es.submit(new Callable[Unit] { def call = r })
 
+
     extension [A](p: Par[A])
       def run(es: ExecutorService): A =
         val ref = new AtomicReference[A] // A mutable, threadsafe reference, to use for storing the result
@@ -118,29 +119,41 @@ object Nonblocking:
 
     /* The code here is very similar. */
     def choiceN[A](p: Par[Int])(ps: List[Par[A]]): Par[A] =
-      ???
+      es => cb => p(es)(ind => eval(es)(ps(ind % ps.length)(es)(cb)))
 
     def choiceViaChoiceN[A](a: Par[Boolean])(ifTrue: Par[A], ifFalse: Par[A]): Par[A] =
-      ???
+      choiceN(a.map(if(_)0 else 1))(List(ifTrue, ifFalse))
 
     def choiceMap[K, V](p: Par[K])(ps: Map[K, Par[V]]): Par[V] =
-      ???
+      es => cb => p(es)(ind => eval(es)(ps(ind)(es)(cb)))
 
     /* `chooser` is usually called `flatMap` or `bind`. */
     def chooser[A, B](p: Par[A])(f: A => Par[B]): Par[B] =
-      ???
+      es => cb => p(es)(ind => eval(es)(f(ind)(es)(cb)))
 
     def choiceViaFlatMap[A](p: Par[Boolean])(f: Par[A], t: Par[A]): Par[A] =
-      ???
+      chooser(p)(if(_) t else f)
 
     def choiceNViaFlatMap[A](p: Par[Int])(choices: List[Par[A]]): Par[A] =
-      ???
+      p.flatMap(i => choices(i % choices.length))
 
-    def join[A](p: Par[Par[A]]): Par[A] =
-      ???
+    // opaque type Future[+A] = (A => Unit) => Unit
+    // opaque type Par[+A] = ExecutorService => Future[A]
+    //opaque type Par[+A] = ExecutorService => (A => Unit) => Unit
+    def join[A](p: Par[Par[A]]): Par[A] = es => cb =>
+      val chunk: (Par[A] => Unit) => Unit = p(es)
+      chunk(par => cb(par.run(es)))
+      /*(cb: A => Unit) =>
+      val chunk: (Par[A] => Unit) => Unit = p(es)
+      def lift(thing: A => Unit): (ExecutorService => (A => Unit) => Unit) => Unit = par =>
+        //par.
+        val stuff: (A => Unit) => Unit = par(es)
 
+      chunk( par => lift(cb))*/
+
+    //es => cb => p(es)(a => f(a)(es)(cb))
     def joinViaFlatMap[A](a: Par[Par[A]]): Par[A] =
-      ???
+      a.flatMap(identity)
 
     def flatMapViaJoin[A,B](p: Par[A])(f: A => Par[B]): Par[B] =
-      ???
+      join(p.map(f))

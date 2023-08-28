@@ -11,6 +11,17 @@ enum List[+A]:
    */
   case Cons(head: A, tail: List[A])
 
+
+/*
+
+sealed trait List[+A]
+
+object List {
+  case object Nil extends List[Nothing]
+
+  case class Cons(head: A, tail: List[A])
+}
+ */
 object List: // `List` companion object. Contains functions for creating and working with lists.
   def sum(ints: List[Int]): Int = ints match // A function that uses pattern matching to add up a list of integers
     case Nil => 0 // The sum of the empty list is 0.

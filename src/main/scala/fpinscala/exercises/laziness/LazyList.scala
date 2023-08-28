@@ -155,7 +155,9 @@ object LazyList:
   lazy val fibs: LazyList[Int] =
     def fib(x: Int, y: Int): LazyList[(Int, Int)] = cons((x, y), fib(y, x+y))
     fib(0, 1).map( (a, b) => a)
-
+  def fibsWill(): LazyList[Int] = unfold((0, 1)) {  case (current, next) =>
+    Some(current, (next, current + next))
+  }
   def unfold[A, S](state: S)(f: S => Option[(A, S)]): LazyList[A] =
     f(state) match
       case Some((a, s)) => cons(a, unfold(s)(f))

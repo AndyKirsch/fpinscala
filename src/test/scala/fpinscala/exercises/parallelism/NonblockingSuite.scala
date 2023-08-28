@@ -80,3 +80,8 @@ class NonblockingSuite extends PropSuite:
     val key = p.run(es)
     val expected: String = ps(key).run(es)
     assertEquals(actual, expected)
+
+  override def afterAll(): Unit = {
+    es.shutdown()
+    super.afterAll()
+  }
