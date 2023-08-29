@@ -26,7 +26,7 @@ object Gen:
 */
 
 // Gen tests:
-/*
+
   test("Exercise 8.4")(ExhGen.int ** ExhGen.int ** genRNG):
     case n ** m ** rng =>
       val (start, stopExclusive) = if n < m then (n, m) else (m, n)
@@ -91,7 +91,7 @@ object Gen:
       val (unionList3, _) = genUnion3.listOfN(shortSample).next(rng)
       assert(unionList3.count(_ == n) >= shortSample / 5, "g2 is twice as common as g1")
       assert(unionList3.count(_ == m) >= shortSample / 2, "g2 is twice as common as g1")
-*/
+
 
 
 // Prop tests: Before using these tests (starting from Exercise 8.9),
@@ -108,8 +108,8 @@ object Prop:
 */
 
 // Prop tests
-/*
-  import fpinscala.exercises.testing.Prop.Result.*
+
+  import fpinscala.exercises.testing.Result.*
 
   private val propPassed = Prop((n, rng) => Passed)
   private val falsified = Falsified(FailedCase.fromString("Failed case"), SuccessCount.fromInt(0))
@@ -125,7 +125,7 @@ object Prop:
     assertEquals((propPassed || propFalsified).check(), Passed)
     assertEquals((propFalsified || propPassed).check(), Passed)
     assert((propFalsified || propFalsified).check().isFalsified)
-*/
+
 
 
 // SGen tests: Before using these tests (starting from Exercise 8.10),

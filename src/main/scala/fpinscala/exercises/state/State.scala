@@ -1,5 +1,7 @@
 package fpinscala.exercises.state
 
+import scala.annotation.tailrec
+
 
 trait RNG:
   def nextInt: (Int, RNG) // Should generate a random `Int`. We'll later define other functions in terms of `nextInt`.
@@ -61,6 +63,14 @@ object RNG:
       val (tail, outputRNG) = ints(count - 1)(next)
       (int:: tail, outputRNG)
 
+  @tailrec
+  def until[T](p: T => Boolean)(nextFn: RNG => (T, RNG))(rng: RNG): (T, RNG) =
+    val (item, next) = nextFn(rng)
+    if(p(item))
+      (item, next)
+    else
+      until(p)(nextFn)(next)
+
   def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng =>
     val (a, intermediate) = ra(rng)
     val (b, next) = rb(intermediate)
@@ -88,6 +98,8 @@ object RNG:
 opaque type State[S, +A] = S => (A, S)
 
 object State:
+  def flatMapCurried[A, B, S](state: State[S,A])(f: A => State[S, B]): State[S, B]=
+    state.flatMap(f)
   extension [S, A](underlying: State[S, A])
     def run(s: S): (A, S) = underlying(s)
 
