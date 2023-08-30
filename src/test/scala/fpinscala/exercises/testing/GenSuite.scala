@@ -111,9 +111,9 @@ object Prop:
 
   import fpinscala.exercises.testing.Result.*
 
-  private val propPassed = Prop((n, rng) => Passed)
+  private val propPassed = Prop((max, n, rng) => Passed)
   private val falsified = Falsified(FailedCase.fromString("Failed case"), SuccessCount.fromInt(0))
-  private val propFalsified = Prop((n, rng) => falsified)
+  private val propFalsified = Prop((max, n, rng) => falsified)
 
   test("Exercise 8.9")(ExhGen.unit(())): _ =>
     assertEquals((propPassed && propPassed).check(), Passed)
@@ -139,12 +139,14 @@ object SGen:
 */
 
 // SGen tests
-/*
+
   test("Exercises 8.10 + 8.11")(ExhGen.int ** genRNG):
     case n ** rng0 =>
       val sGenA = SGen(Gen.unit(_))
       def aToB(a: Int) = a % 2 == 0
-      val (isEven0, rng1) = sGenA.map(aToB).apply(n).next(rng0)
+      val x = sGenA.map(aToB)
+
+      val (isEven0, rng1) = x.apply(n).next(rng0)
       assertEquals(n % 2 == 0, isEven0)
 
       def aToGenB(a: Int) = Gen.unit(aToB(a)).unsized
@@ -155,9 +157,8 @@ object SGen:
     case n ** rng =>
       val (randomBooleanList, _) = Gen.boolean.list(n).next(rng)
       assertEquals(randomBooleanList.length, n)
-
   test("Exercise 8.13")(genShortNumber ** genRNG):
     case n ** rng =>
-      val (randomNonEmptyList, _) = Gen.boolean.nonEmptyList(n).next(rng)
+      val x: Gen[List[Boolean]] = Gen.boolean.nonEmptyList(n)
+      val (randomNonEmptyList, _) = x.next(rng)
       assert(randomNonEmptyList.nonEmpty)
-*/

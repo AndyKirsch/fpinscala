@@ -10,6 +10,7 @@ import fpinscala.exercises.state.RNG.{double, nonNegativeInt}
 import fpinscala.exercises.testing.Result.Passed
 
 import java.util.concurrent.{ExecutorService, Executors}
+import scala.annotation.targetName
 
 /*
 The library developed in this chapter goes through several iterations. This file is just the
@@ -33,6 +34,12 @@ object Gen:
   def weighted[A](g1: (Gen[A], Double), g2: (Gen[A], Double)): Gen[A] =
     val g1Threshold = g1._2.abs / (g1._2.abs + g2._2.abs)
     State(RNG.double).flatMap(d => if d < g1Threshold then g1._1 else g2._1)
+
+  def gpy2: Gen[Par[Int]] =
+    choose(-100, 100).listOfN(choose(0, 20)).map(nums =>
+      nums.foldLeft(Par.unit(0))((p, y) =>
+        Par.fork(p.map2(Par.unit(y))(_ + _))))
+
   extension [A](self: Gen[A])
     // We should use a different method name to avoid looping (not 'run')
     def next(rng: RNG): (A, RNG) = self.run(rng)
@@ -45,6 +52,12 @@ object Gen:
     def listOfN(n: Int): Gen[List[A]] =
       val generators: List[Gen[A]] = List.fill(n)(self)
       State.sequence(generators)
+
+    def unsized: SGen[A] = _ => self
+    def list: SGen[List[A]] = i => self.listOfN(i)
+
+    def nonEmptyList: SGen[List[A]] = n => listOfN(n.max(1))
+
 
 
 
@@ -68,7 +81,7 @@ object SuccessCount:
 
   def fromInt(x: Int): SuccessCount = x
 
-opaque type Prop = ( TestCases, RNG) => Result
+opaque type Prop = (MaxSize, TestCases, RNG) => Result
 
 enum Result:
   case Passed
@@ -80,21 +93,29 @@ enum Result:
 
 
 object Prop:
-  def apply(f: (TestCases, RNG) => Result): Prop =
-    (n, rng) => f(n, rng)
-  def forAll[A](gen: Gen[A])(f: A => Boolean): Prop = (n, rng) =>
-      randomLazyList(gen)(rng)
-        .zip(LazyList.from(0))
-        .take(n)
-        .map:
-          case (a, i) =>
-            try
-              if f(a) then Passed else Result.Falsified(a.toString, i)
-            catch
-              case e: Exception =>
-                Result.Falsified(buildMsg(a, e), i)
-        .find(_.isFalsified)
-        .getOrElse(Passed)
+  def apply(f: (MaxSize, TestCases, RNG) => Result): Prop =
+    (max, n, rng) => f(max, n, rng)
+  @targetName("forAllSized")
+  def forAll[A](g: SGen[A])(f: A => Boolean): Prop = (max, n, rng) =>
+    val casesPerSize = (n.toInt - 1) /max.toInt + 1
+    val props: LazyList[Prop] = LazyList.from(0).take((n.toInt min max.toInt) + 1).map(i => forAll(g(i))(f))
+
+      val list: List[Prop] = props.map[Prop](p => (max, n, rng) =>
+      p(max, casesPerSize, rng))
+        .toList
+    val prop: Prop = list
+        .reduce(_ && _)
+      prop(max, n, rng)
+
+  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop:
+    (_, n, rng) =>
+      randomLazyList(as)(rng).zip(LazyList.from(0)).take(n).map:
+        case (a, i) =>
+          try
+            if f(a) then Passed else Result.Falsified(a.toString, i)
+          catch
+            case e: Exception => Result.Falsified(buildMsg(a, e), i)
+      .find(_.isFalsified).getOrElse(Passed)
 
   def randomLazyList[A](g:Gen[A])(rng: RNG): LazyList[A]=
     LazyList.unfold(rng)(rng => Some(g.run(rng)))
@@ -107,19 +128,19 @@ object Prop:
                testCases: TestCases = 100,
                rng: RNG = RNG.Simple(System.currentTimeMillis)
              ): Result =
-      self(testCases, rng)
+      self(maxSize, testCases, rng)
 
-    def &&(that: Prop): Prop = (cases, rng) =>
-      val selfResult = self(cases, rng)
+    def &&(that: Prop): Prop = (maxSize, cases, rng) =>
+      val selfResult = self(maxSize, cases, rng)
       if(selfResult.isFalsified)
         selfResult
       else
-        that(cases, rng)
+        that(maxSize, cases, rng)
 
-    def || (that: Prop): Prop = (cases, rng) =>
-      val selfResult = self(cases, rng)
+    def || (that: Prop): Prop = (maxSize, cases, rng) =>
+      val selfResult = self(maxSize, cases, rng)
       if (selfResult.isFalsified)
-        that(cases, rng)
+        that(maxSize, cases, rng)
       else
         selfResult
 
@@ -135,4 +156,15 @@ trait Gen[A]:
   def flatMap[B](f: A => Gen[B]): Gen[B] = ???
  */
 
-trait SGen[+A]
+opaque type SGen[+A] = Int => Gen[A]
+
+object SGen:
+  def apply[A](f: Int => Gen[A]): SGen[A] = f
+
+  extension [A](self: SGen[A])
+    def apply(n: Int): Gen[A] = self(n)
+    def map[B](f: A=>B): SGen[B] = i => self(i).map(f)
+
+    def flatMap[B](f: A => SGen[B]): SGen[B] = i => self(i).flatMap(genned => f(genned).apply(i))
+
+
