@@ -9,7 +9,7 @@ import fpinscala.exercises.parsing.Parsers
 class ParsersSuite extends PropSuite:
   import UnitTestParser.*
 
-  /*
+
   test("Parsers.char")(genChar): c =>
     assertEquals(char(c).run(c.toString), Right(c))
     val anotherChar = (c + 1).toChar
@@ -53,7 +53,7 @@ class ParsersSuite extends PropSuite:
 
   test("Parsers.slice")(Gen.unit(())): _ =>
     assertEquals((char('a') | char('b')).many.slice.run("aaba"), Right("aaba"))
-
+/*
   test("Exercise 9.1, map2")(Gen.unit(())): _ =>
     val parserA = char('a')
     val parserB = char('b')
