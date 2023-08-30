@@ -21,7 +21,7 @@ trait Parsers[Parser[+_]]:
 
   extension[A] (p: Parser[A])
     def run(input: String): Either[ParseError, A]
-    infix def or(p2: Parser[A]): Parser[A] = ???
+    infix def or(p2: Parser[A]): Parser[A]
     def |(p2: Parser[A]): Parser[A] = or(p2)
     def many: Parser[List[A]] = ???
     def map[B](f: A => B): Parser[B] = ???
