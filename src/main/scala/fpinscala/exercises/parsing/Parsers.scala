@@ -21,19 +21,20 @@ trait Parsers[Parser[+_]]:
 
   extension[A] (p: Parser[A])
     def run(input: String): Either[ParseError, A]
-    infix def or(p2: Parser[A]): Parser[A]
-    def |(p2: Parser[A]): Parser[A] = or(p2)
-    def many: Parser[List[A]] = ???
-    def map[B](f: A => B): Parser[B] = ???
+    infix def or(p2: => Parser[A]): Parser[A]
+    def |(p2: => Parser[A]): Parser[A] = or(p2)
+    def many: Parser[List[A]] = ???//p.flatMap()
+    def map[B](f: A => B): Parser[B] = flatMap(x => succeed(f(x)))
     def product[B](p2: Parser[B]): Parser[(A, B)] = ???
     def **[B](p2: Parser[B]): Parser[(A, B)] = product(p2)
     def listOfN(n: Int): Parser[List[A]] = ???
+    def flatMap[B](f: A => Parser[B]): Parser[B]
 
   case class ParserOps[A](p: Parser[A])
 
   val numA: Parser[Int] = char('a').many.map(_.size)
 
-  object Laws
+  object Laws:
     def equal[A](p1: Parser[A], p2: Parser[A])(in: Gen[String]): Prop = Prop.forAll(in)(s => p1.run(s) == p2.run(s))
     def mapLaw[A](p:Parser[A])(in: Gen[String]): Prop = equal(p, p.map(a => a))(in)
 
