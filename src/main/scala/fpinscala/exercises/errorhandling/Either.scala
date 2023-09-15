@@ -24,6 +24,25 @@ enum Either[+E,+A]:
     this.flatMap { a =>
       b.map(b2 => f(a, b2))
     }
+    /*
+    doesn't pass error conditions
+    b.flatMap { b2 =>
+      this.map(a => f(a, b2))
+    }
+     */
+
+    // EitherT[Future, Error, T] ~= Future[Either[Error, T]]
+    // f-algebra
+
+    // F : Monad
+    // Monad.pure("stuff"): F[String]
+
+    // Future[T] ~= Eager[Async[Try[T]]
+    // ZIO[R,E, A] ~= Async[(R, Either[E, A])]
+
+    // val f: Future = ???
+    // f.map
+    // f.map
 
 object Either:
   def traverse[E,A,B](es: List[A])(f: A => Either[E, B]): Either[E, List[B]] =
