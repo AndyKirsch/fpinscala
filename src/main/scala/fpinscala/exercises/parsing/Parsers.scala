@@ -23,13 +23,15 @@ trait Parsers[Parser[+_]]:
     def run(input: String): Either[ParseError, A]
     infix def or(p2: => Parser[A]): Parser[A]
     def |(p2: => Parser[A]): Parser[A] = or(p2)
-    def many: Parser[List[A]] = ???//p.flatMap()
+    def many: Parser[List[A]] = map2(p.many)(_ :: _) | succeed(Nil)
+    def many1: Parser[List[A]] = map2(p.many)(_ :: _)
     def map[B](f: A => B): Parser[B] = flatMap(x => succeed(f(x)))
-    def product[B](p2: Parser[B]): Parser[(A, B)] = ???
+    def product[B](p2: => Parser[B]): Parser[(A, B)] = flatMap(a => p2.map(b => (a, b)))
     def **[B](p2: Parser[B]): Parser[(A, B)] = product(p2)
-    def listOfN(n: Int): Parser[List[A]] = ???
+    def listOfN(n: Int): Parser[List[A]] = if (n > 0) map2(p.listOfN(n-1))(_ :: _) else succeed(Nil)
     def flatMap[B](f: A => Parser[B]): Parser[B]
-
+    def map2[B, C](p2: =>Parser[B])(f: (A, B) => C): Parser[C]=
+      product(p2).map(f.tupled)
   case class ParserOps[A](p: Parser[A])
 
   val numA: Parser[Int] = char('a').many.map(_.size)
