@@ -2,6 +2,7 @@ package fpinscala.exercises.parsing
 
 import fpinscala.exercises.testing.*
 
+import java.util.regex.Pattern
 import scala.util.matching.Regex
 
 
@@ -32,6 +33,21 @@ trait Parsers[Parser[+_]]:
     def flatMap[B](f: A => Parser[B]): Parser[B]
     def map2[B, C](p2: =>Parser[B])(f: (A, B) => C): Parser[C]=
       product(p2).map(f.tupled)
+
+    def slice: Parser[String]
+    def attempt: Parser[A]
+
+    def combo[B](p2: => Parser[B]) = p.slice.map2(p2)((_, b) => b)
+    def *>[B](p2: => Parser[B]) = p.slice.map2(p2)((_, b) => b)
+    def <*(p2: => Parser[Any]) = p.map2(p2.slice)((a, b) => a)
+    
+    
+
+   
+
+    def as[B](b: B): Parser[B] = p.slice.map(_ => b)
+
+
   case class ParserOps[A](p: Parser[A])
 
   val numA: Parser[Int] = char('a').many.map(_.size)
