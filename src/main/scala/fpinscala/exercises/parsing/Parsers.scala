@@ -40,10 +40,16 @@ trait Parsers[Parser[+_]]:
     def combo[B](p2: => Parser[B]) = p.slice.map2(p2)((_, b) => b)
     def *>[B](p2: => Parser[B]) = p.slice.map2(p2)((_, b) => b)
     def <*(p2: => Parser[Any]) = p.map2(p2.slice)((a, b) => a)
-    
-    
 
-   
+
+    def sep(separator: Parser[Any]): Parser[List[A]] = // use `Parser[Any]` since don't care about result type of separator
+      p.sep1(separator) | succeed(Nil)
+
+    /** One or more repetitions of `p`, separated by `p2`, whose results are ignored. */
+    def sep1(separator: Parser[Any]): Parser[List[A]] =
+      p.map2((separator *> p).many)(_ :: _)
+
+
 
     def as[B](b: B): Parser[B] = p.slice.map(_ => b)
 
@@ -70,9 +76,9 @@ case class Location(input: String, offset: Int = 0):
 
   def advanceBy(n: Int) = copy(offset = offset+n)
 
-  def remaining: String = ???
+  def remaining: String = input.substring(offset)
 
-  def slice(n: Int) = ???
+  def slice(n: Int) = input.substring(offset, offset + n)
 
   /* Returns the line corresponding to this location */
   def currentLine: String = 
@@ -88,6 +94,10 @@ case class ParseError(stack: List[(Location,String)] = List(),
 class Examples[Parser[+_]](P: Parsers[Parser]):
   import P.*
 
-  val nonNegativeInt: Parser[Int] = ???
+  val nonNegativeInt: Parser[Int] = regex("\\d+".r).map(Integer.parseInt(_))
 
-  val nConsecutiveAs: Parser[Int] = ???
+  val nConsecutiveAs: Parser[Int] =
+    for
+      n <- nonNegativeInt
+      _ <- char('a').listOfN(n)
+    yield n

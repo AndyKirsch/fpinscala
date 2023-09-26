@@ -53,7 +53,7 @@ class ParsersSuite extends PropSuite:
 
   test("Parsers.slice")(Gen.unit(())): _ =>
     assertEquals((char('a') | char('b')).many.slice.run("aaba"), Right("aaba"))
-/*
+
   test("Exercise 9.1, map2")(Gen.unit(())): _ =>
     val parserA = char('a')
     val parserB = char('b')
@@ -136,4 +136,4 @@ class ParsersSuite extends PropSuite:
 
   private def unbiasL[A, B, C](p: ((A, B), C)): (A, B, C) = (p(0)(0), p(0)(1), p(1))
   private def unbiasR[A, B, C](p: (A, (B, C))): (A, B, C) = (p(0), p(1)(0), p(1)(1))
-  */
+

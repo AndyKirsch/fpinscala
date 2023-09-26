@@ -13,6 +13,7 @@ class JSONSuite extends PropSuite:
   private lazy val parser = JSON.jsonParser(UnitTestParser)
 
   test("JSON.JNull")(Gen.unit(())): _ =>
+    //assertEquals(parser.run("null"), Right(JNull))
     assertEquals(parser.run("""{ "key": null }"""), Right(JObject(Map("key" -> JNull))))
     assertEquals(parser.run("""[ null ]"""), Right(JArray(IndexedSeq(JNull))))
     assertEquals(

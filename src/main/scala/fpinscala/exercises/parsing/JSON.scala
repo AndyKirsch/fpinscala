@@ -16,8 +16,6 @@ object JSON:
 
     def token(s: String) = string(s).attempt <* whitespace
 
-    def foo = string("").map(identity)
-
     def jString = whitespace.map(x => JString(x))
     def quoted: Parser[String] = string("\"").combo(thru("\"").map(_.dropRight(1)))
 
@@ -27,23 +25,27 @@ object JSON:
 
     def escapedQuoted: Parser[String] = token2(quoted)
 
-    def thru(s: String): Parser[String] = regex((".*?" + Pattern.quote(s)).r)
+    def thru(s: String): Parser[String] = regex((".*?" + Pattern.quote(s)).r).attempt
 
-    def lit: Parser[JSON] = (
+    def lit: Parser[JSON] =
       token("null").as(JNull) |
         double.map(JNumber(_)) |
         jString |
         token("true").as(JBool(true)) |
         token("false").as(JBool(false))
-      )
-
 
     def doubleString: Parser[String] =
       token2(regex("[-+]?([0-9]*\\.)?[0-9]+([eE][-+]?[0-9]+)?".r))
 
-    /** Floating point literals, converted to a `Double`. */
     def double: Parser[Double] =
       doubleString.map(_.toDouble)
 
-    lit
+
+    def value: Parser[JSON] = obj | array | lit
+    def kv: Parser[(String, JSON)] = quoted  ** (token(":") *> value)
+
+    def obj: Parser[JSON] = token("{").combo(kv.sep(token(",")).map(kvs => JObject(kvs.toMap))) <* token("}")
+    def array: Parser[JSON] = token("[").combo(value.sep(token(",")).map(values => JArray(values.toIndexedSeq))) <* token("]")
+
+    obj | array
 
