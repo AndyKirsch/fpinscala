@@ -18,7 +18,7 @@ trait Parsers[Parser[+_]]:
   def regex(r: Regex): Parser[String]
 
   def char(c: Char): Parser[Char] = string(c.toString).map(_.charAt(0))
-  def firstNonmatchingIndex(s1: String, s2: String, offset: Int): Int
+  //def firstNonmatchingIndex(s1: String, s2: String, offset: Int): Int
 
   extension[A] (p: Parser[A])
     def run(input: String): Either[ParseError, A]
