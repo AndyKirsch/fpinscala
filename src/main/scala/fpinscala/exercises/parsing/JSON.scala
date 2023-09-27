@@ -41,7 +41,7 @@ object JSON:
 
 
     def value: Parser[JSON] = lit | obj | array
-    def kv: Parser[(String, JSON)] = (quoted.slice <* whitespace)  ** (token(":") *> value)
+    def kv: Parser[(String, JSON)] = (escapedQuoted <* whitespace)  ** (token(":") *> value)
 
     def obj: Parser[JSON] = token("{").combo(kv.sep(token(",")).map(kvs => JObject(kvs.toMap))) <* token("}")
     def array: Parser[JSON] = token("[").combo(value.sep(token(",")).map(values => JArray(values.toIndexedSeq))) <* token("]")
