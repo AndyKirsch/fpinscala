@@ -87,7 +87,7 @@ case class Location(input: String, offset: Int = 0):
 
 case class ParseError(stack: List[(Location,String)] = List(),
                       otherFailures: List[ParseError] = List()):
-  def push(loc: Location, msg: String): ParseError = ???
+  def push(loc: Location, msg: String): ParseError = copy(stack = this.stack :+ (loc, msg))
 
   def label(s: String): ParseError = ???
 
