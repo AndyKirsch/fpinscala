@@ -38,7 +38,7 @@ trait Parsers[Parser[+_]]:
     def attempt: Parser[A]
 
     def combo[B](p2: => Parser[B]) = p.slice.map2(p2)((_, b) => b)
-    def *>[B](p2: => Parser[B]) = p.slice.map2(p2)((_, b) => b)
+    def *>[B](p2: => Parser[B]): Parser[B] = p.slice.map2(p2)((_, b) => b)
     def <*(p2: => Parser[Any]) = p.map2(p2.slice)((a, b) => a)
 
 

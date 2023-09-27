@@ -16,7 +16,6 @@ object JSON:
 
     def token(s: String) = string(s).attempt <* whitespace
 
-    def jString = whitespace.map(x => JString(x))
     def quoted: Parser[String] = string("\"").combo(thru("\"").map(_.dropRight(1)))
 
     def whitespace: Parser[String] = regex("\\s*".r)
@@ -30,7 +29,7 @@ object JSON:
     def lit: Parser[JSON] =
       token("null").as(JNull) |
         double.map(JNumber(_)) |
-        jString |
+        escapedQuoted.map(x => JString(x)) |
         token("true").as(JBool(true)) |
         token("false").as(JBool(false))
 
@@ -41,11 +40,11 @@ object JSON:
       doubleString.map(_.toDouble)
 
 
-    def value: Parser[JSON] = obj | array | lit
-    def kv: Parser[(String, JSON)] = quoted  ** (token(":") *> value)
+    def value: Parser[JSON] = lit | obj | array
+    def kv: Parser[(String, JSON)] = (quoted.slice <* whitespace)  ** (token(":") *> value)
 
     def obj: Parser[JSON] = token("{").combo(kv.sep(token(",")).map(kvs => JObject(kvs.toMap))) <* token("}")
     def array: Parser[JSON] = token("[").combo(value.sep(token(",")).map(values => JArray(values.toIndexedSeq))) <* token("]")
 
-    obj | array
+    whitespace *> (obj | array)
 
