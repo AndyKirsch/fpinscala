@@ -58,7 +58,10 @@ object Gen:
 
     def nonEmptyList: SGen[List[A]] = n => listOfN(n.max(1))
 
+    def **[B](second: Gen[B]): Gen[(A, B)] = flatMap(a => second.flatMap(b => Gen.unit((a,b))))
 
+  object `**`:
+    def unapply[A, B](p: (A, B)) = Some(p)
 
 
 opaque type MaxSize = Int
