@@ -43,6 +43,7 @@ object Gen:
   extension [A](self: Gen[A])
     // We should use a different method name to avoid looping (not 'run')
     def next(rng: RNG): (A, RNG) = self.run(rng)
+    def map[B](f: A => B): Gen[B] = flatMap(x => Gen.unit(f(x)))
     def flatMap[B](f: A => Gen[B]): Gen[B] =
       State.flatMapCurried(self)(f)
 

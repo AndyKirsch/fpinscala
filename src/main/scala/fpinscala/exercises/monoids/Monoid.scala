@@ -95,21 +95,84 @@ object Monoid:
 
       override def empty: Par[A] = Par.unit(m.empty)
 
-  // This type checks but need to actually fork or something
   def parFoldMap[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] =
+    Par.parMap(v)(f).flatMap { bs =>
+      foldMapV(bs, par(m)) { b =>
+        Par.lazyUnit(b)
+      }
+    }
+
+  def parFoldMapNotReally[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] =
+    // This type checks but does it need to actually fork or something?
     val p: Monoid[Par[B]] = par(m)
     foldMapV(v, p)(f.andThen(Par.unit))
 
   def ordered(ints: IndexedSeq[Int]): Boolean =
-    ???
+    // Not how this was expected to be done
+    val data = ints.sliding(2).toIndexedSeq
+    foldMapV(data, booleanAnd) { case pair =>
+      pair.size match
+        case n if n > 1 =>
+          val l = pair(0)
+          val r = pair(1)
+          l <= r
+        case _ => true
+    }
 
   enum WC:
     case Stub(chars: String)
     case Part(lStub: String, words: Int, rStub: String)
 
-  lazy val wcMonoid: Monoid[WC] = ???
+  object WC:
+    def toString(wc: WC): String = wc match
+      case Part(lStub, words, rStub) => s"Part(\"$lStub\", $words, \"$rStub\")"
+      case Stub(chars) => s"Stub(\"$chars\")"
 
-  def count(s: String): Int = ???
+  lazy val wcMonoid: Monoid[WC] = new Monoid[WC]:
+    import WC.*
+    override def combine(a1: WC, a2: WC): WC =
+      def count(str: String): Int = str.split(" ").map(_.trim).count(_.nonEmpty)
+      def countSides(str: String): (String, Int, String) =
+        val parts = str.split(" ").map(_.trim).filter(_.nonEmpty)
+        val (lStub, middleRight) = parts.splitAt(1)
+        val (toBeCounted, rStub) = middleRight.splitAt(middleRight.length - 1)
+        (lStub.headOption.getOrElse(""), toBeCounted.length, rStub.headOption.getOrElse(""))
+
+      def parse(string: String): WC =
+        val (lStub, count, rStub) = countSides(string)
+        println(s"parsed to $lStub $count $rStub")
+        (lStub, count, rStub) match {
+          case ("", 0, r) => Stub(r)
+          case (l, 0, "") => Stub(l)
+          case (_, _, _) => Part(lStub, count, rStub)
+        }
+
+      val result = (a1, a2) match {
+        // hardcode these in
+        case (l, Stub("")) => l
+        case (Stub(""), r) => r
+        case (Stub(l), Stub(r)) => parse(l + r)
+        case (Stub(l), Part(lStub, words, rStub)) =>  Part(l+lStub, words, rStub)
+        case (Part(lStub, words, rStub), Stub(r)) => Part(lStub, words, rStub + r)
+        case (Part(lStub, wordsL, mrStub), Part(mlStub, wordsR, rStub)) => Part(lStub, wordsL + wordsR +  count(mrStub+mlStub), rStub)
+      }
+      println(s"combining ${WC.toString(a1)} with ${WC.toString(a2)} got ${WC.toString(result)} ")
+      result
+
+    override def empty: WC = Stub("")
+
+  def count(s: String): Int =
+    import WC.*
+    val folded = foldMapV(s, wcMonoid) { s =>
+      Stub(s.toString)
+    }
+    println(s"folded ${WC.toString(folded)}")
+    val surrounded = wcMonoid.combine(Stub(" "), wcMonoid.combine(folded, Stub(" ")))
+    println(s"surrounded ${WC.toString(surrounded)}")
+    def countFinal(s: String): Int = if(s.isBlank) 0 else 1
+    surrounded match
+      case Stub(chars) => countFinal(chars)
+      case Part(lStub, words, rStub) => countFinal(lStub) + words + countFinal(rStub)
 
   given productMonoid[A, B](using ma: Monoid[A], mb: Monoid[B]): Monoid[(A, B)] with
     def combine(x: (A, B), y: (A, B)) = ???
