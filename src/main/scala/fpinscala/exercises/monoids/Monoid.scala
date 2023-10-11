@@ -135,7 +135,8 @@ object Monoid:
 
       def normalize(item: WC): WC = item match
         case Stub(str) =>
-          val parts = str.split(' ')// TODO this is wrong it is dropping the tailing space
+          val parts = (str+"'").split(' ')// TODO this is wrong it is dropping the tailing space
+          parts(parts.length-1) = parts.last.drop(1)
           println(s"normalizing ${WC.toString(item)} with parts ${parts.length} '${parts.mkString(", ")}''")
 
           parts.length match
