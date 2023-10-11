@@ -131,6 +131,44 @@ object Monoid:
   lazy val wcMonoid: Monoid[WC] = new Monoid[WC]:
     import WC.*
     override def combine(a1: WC, a2: WC): WC =
+      def parse(str: String): WC = Stub(str)
+
+      def normalize(item: WC): WC = item match
+        case Stub(str) =>
+          val parts = str.split(' ')// TODO this is wrong it is dropping the tailing space
+          println(s"normalizing ${WC.toString(item)} with parts ${parts.length} '${parts.mkString(", ")}''")
+
+          parts.length match
+            case 0 => Stub("")
+            case 1 => Stub(str)
+            case len => Part(parts(0), len - 2, parts.last)
+        case Part(l, count, r) =>
+          val lParts = l.split(' ')
+          val (left, lIncrement) = lParts.length match
+            case 0 => ("", 0)
+            case len => (lParts(0), len - 1)
+          val rParts = r.split(' ')
+          val (right, rIncrement) = rParts.length match
+            case 0 => ("", 0)
+            case len => (rParts.last, len - 1)
+
+          Part(left, lIncrement + count + rIncrement, right)
+
+      val result = (a1, a2) match
+        // hardcode these in
+        case (l, Stub("")) => l
+        case (Stub(""), r) => r
+        case (Stub(l), Stub(r)) => normalize(parse(l + r))
+        case (Stub(l), Part(lStub, words, rStub)) =>
+          normalize(Part(l + lStub, words, rStub))
+        case (Part(lStub, words, rStub), Stub(r)) =>
+          normalize(Part(lStub, words, rStub + r))
+        case (Part(lStub, wordsL, mrStub), Part(mlStub, wordsR, rStub)) => normalize(Part(lStub, wordsL + wordsR + count(mrStub + mlStub), rStub))
+
+      println(s"combining ${WC.toString(a1)} with ${WC.toString(a2)} got ${WC.toString(result)} ")
+      result
+
+    def combineOld(a1: WC, a2: WC): WC =
       def count(str: String): Int = str.split(" ").map(_.trim).count(_.nonEmpty)
       def countSides(str: String): (String, Int, String) =
         val parts = str.split(" ").map(_.trim).filter(_.nonEmpty)
