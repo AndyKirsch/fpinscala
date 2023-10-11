@@ -122,19 +122,6 @@ class MonoidSuite extends PropSuite:
     case a ** b ** c =>
       assertMonoid(wcMonoid, a, b, c)
 
-  test("Monoid.wcMonoid.spaces")(Gen.unit(" b")): _ =>
-    val left = Stub(" ")
-    val right = Stub("zmkzvjzeemmsfor ")
-    val result = wcMonoid.combine(left, right)
-    assertEquals(result, Part(" ", 1, " "))
-
-  test("Monoid.wcMonoid.simple")(Gen.unit(" b")): str =>
-    val expected = if str.isEmpty then 0 else str.trim.split("\\s+").length
-    val answer = foldMapV(str, wcMonoid) { s =>
-      Stub(s.toString)
-    }
-    assertEquals(answer, Part("", 0, " b"), str)
-
   test("Monoid.wcMonoid.simple")(Gen.unit("foo bar")): str =>
     val expected = if str.isEmpty then 0 else str.trim.split("\\s+").length
     assertEquals(count(str), expected, str)

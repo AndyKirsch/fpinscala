@@ -130,14 +130,23 @@ object Monoid:
 
   lazy val wcMonoid: Monoid[WC] = new Monoid[WC]:
     import WC.*
-    override def combine(a1: WC, a2: WC): WC =
+
+    override def combine(wc1: WC, wc2: WC) = (wc1, wc2) match
+      case (WC.Stub(a), WC.Stub(b)) => WC.Stub(a + b)
+      case (WC.Stub(a), WC.Part(l, w, r)) => WC.Part(a + l, w, r)
+      case (WC.Part(l, w, r), WC.Stub(a)) => WC.Part(l, w, r + a)
+      case (WC.Part(l1, w1, r1), WC.Part(l2, w2, r2)) =>
+        WC.Part(l1, w1 + (if (r1 + l2).isEmpty then 0 else 1) + w2, r2)
+
+    def combineStillWrong(a1: WC, a2: WC): WC =
       def parse(str: String): WC = Stub(str)
 
       def normalize(item: WC): WC = item match
         case Stub(str) =>
-          val parts = (str+"'").split(' ')// TODO this is wrong it is dropping the tailing space
-          parts(parts.length-1) = parts.last.drop(1)
-          println(s"normalizing ${WC.toString(item)} with parts ${parts.length} '${parts.mkString(", ")}''")
+          val parts = ("@"+str+"@").split("((?=:|#| )|(?<=:|#| ))")// TODO this is wrong it is dropping the tailing space
+          parts(0) = parts(0).drop(1)
+          parts(parts.length-1) = parts.last.dropRight(1)
+          println(s"normalizing ${WC.toString(item)} with parts ${parts.length} \"${parts.mkString("'", "', '", "'")}\"")
 
           parts.length match
             case 0 => Stub("")
@@ -203,7 +212,7 @@ object Monoid:
   def count(s: String): Int =
     import WC.*
     val folded = foldMapV(s, wcMonoid) { s =>
-      Stub(s.toString)
+      if (s.isWhitespace) Part("", 0, "") else Stub(s.toString)
     }
     println(s"folded ${WC.toString(folded)}")
     val surrounded = wcMonoid.combine(Stub(" "), wcMonoid.combine(folded, Stub(" ")))
