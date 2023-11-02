@@ -5,6 +5,15 @@ import fpinscala.answers.monoids.Monoid
 import fpinscala.answers.state.State
 
 trait Monad[F[_]] extends Applicative[F]:
+/*  def compose2[G[_]] (G: Monad[G]): Monad[[x] =>> F[G[x]]] =
+    val F: Monad[F] = this
+    new Monad[[x] =>> F[G[x]]]:
+      override def unit[A](a: => A): F[G[A]] = F.unit(G.unit(a))
+      def flatMap2[A, B](mna: F[G[A]])(f: A => F[G[B]]): F[G[B]] =
+        val x: F[G[B]] = mna.flatMap { f
+        }
+        ???
+*/
   extension [A](fa: F[A])
     def flatMap[B](f: A => F[B]): F[B] =
       fa.map(f).join
@@ -26,7 +35,12 @@ trait Monad[F[_]] extends Applicative[F]:
 
 object Monad:
   def composeM[G[_], H[_]](using G: Monad[G], H: Monad[H], T: Traverse[H]): Monad[[x] =>> G[H[x]]] = new:
-    def unit[A](a: => A): G[H[A]] = ???
+    def unit[A](a: => A): G[H[A]] = G.unit(H.unit(a))
     extension [A](gha: G[H[A]])
       override def flatMap[B](f: A => G[H[B]]): G[H[B]] =
-        ???
+        G.flatMap(gha) { (ha: H[A]) =>
+          // F =H[] G = G[H[]] returns G[H[H[B]]
+          val x: G[H[H[B]]]  = ha.traverse(f)
+          G.map(x)(_.join)
+        }
+        

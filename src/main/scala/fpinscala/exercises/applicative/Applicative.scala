@@ -3,6 +3,7 @@ package fpinscala.exercises.applicative
 import fpinscala.answers.monads.Functor
 import fpinscala.answers.monoids.Monoid
 import fpinscala.answers.state.State
+import fpinscala.exercises.monads.Id
 
 trait Applicative[F[_]] extends Functor[F]:
   self =>
@@ -64,7 +65,11 @@ trait Applicative[F[_]] extends Functor[F]:
 
 
   def sequenceMap[K,V](ofa: Map[K, F[V]]): F[Map[K, V]] =
-    ???
+    ofa.foldRight(unit(Map.empty[K, V])) { case ((k, fv), acc: F[Map[K, V]]) =>
+      acc.map2(fv) { case (map, v) =>
+        map.updated(k, v)
+      }
+    }
 
 object Applicative:
   opaque type ZipList[+A] = LazyList[A]
@@ -96,6 +101,10 @@ object Applicative:
             case (Valid(a), Valid(b)) => Valid(f(a,b))
 
   type Const[A, B] = A
+
+  object IdStuff:
+    given idApplicative: Applicative[Id] with
+      def unit[A](a: => A) = Id(a)
 
   given monoidApplicative[M](using m: Monoid[M]): Applicative[Const[M, _]] with
     def unit[A](a: => A): M = m.empty

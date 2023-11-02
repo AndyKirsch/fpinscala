@@ -52,7 +52,7 @@ trait Monad[F[_]] extends Functor[F]:
 
   def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a =>
     f(a).flatMap(g(_))
-
+  
   extension [A](fa: F[A])
     def flatMapViaCompose[B](f: A => F[B]): F[B] =
       // why can't I do this with a unit?
