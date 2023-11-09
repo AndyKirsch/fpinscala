@@ -1,5 +1,6 @@
 package fpinscala.exercises.iomonad
 
+import scala.annotation.tailrec
 import scala.io.StdIn.readLine
 import scala.util.Try
 
@@ -388,7 +389,13 @@ object IO3:
       flatMap(a => Return(f(a)))
 
     // Exercise 3: Implement a `Free` interpreter which works for any `Monad`
-    def run(using F: Monad[F]): F[A] = ???
+    def run(using F: Monad[F]): F[A] =
+      step match
+        case Return(a) => F.unit(a)
+        case Suspend(ta) => ta
+        case FlatMap(fx, f) => fx match
+          case Suspend(tx:F[A]) => tx.flatMap(a => f(a).run)
+          case _ => sys.error("Impossible, since `step` eliminates these cases")
 
     // return either a `Suspend`, a `Return`, or a right-associated `FlatMap`
     @annotation.tailrec
@@ -406,7 +413,7 @@ object IO3:
 
     // Exercise 4: Implement translate using runFree
     def translate[G[_]](fToG: [x] => F[x] => G[x]): Free[G, A] =
-      ???
+      runFree([x] => (fx: F[x]) => Suspend(fToG(fx)))
 
   import Free.{Return, Suspend, FlatMap}
 
@@ -414,13 +421,20 @@ object IO3:
 
     // Exercise 1: Implement a free monad for any type constructor F
     given freeMonad[F[_]]: Monad[[x] =>> Free[F, x]] with
-      def unit[A](a: => A) = ???
+      def unit[A](a: => A) = Return(a)
       extension [A](fa: Free[F, A])
-        def flatMap[B](f: A => Free[F, B]) = ???
+        def flatMap[B](f: A => Free[F, B]) = FlatMap(fa, f)
 
     // Exercise 2: Implement runTrampoline
     extension [A](fa: Free[Function0, A])
-      def runTrampoline: A = ???
+      @annotation.tailrec
+      def runTrampoline: A = fa match
+        case Return(a) => a
+        case Suspend(ta) => ta()
+        case FlatMap(fx, f) => fx match
+          case Return(x) => f(x).runTrampoline
+          case Suspend(tx) => f(tx()).runTrampoline
+          case FlatMap(fy, g) => fy.flatMap(y => g(y).flatMap(f)).runTrampoline
 
   /*
   The type constructor `F` lets us control the set of external requests our
@@ -489,7 +503,7 @@ object IO3:
   // Exercise 4: Implement unsafeRunConsole
   extension [A](fa: Free[Console, A])
     def unsafeRunConsole: A =
-      ???
+      fa.translate([x] => (c: Console[x]) => c.toThunk).runTrampoline
 
   /*
   There is nothing about `Free[Console, A]` that requires we interpret
