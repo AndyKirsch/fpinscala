@@ -572,8 +572,20 @@ object IO3:
 
   def read(file: AsynchronousFileChannel,
            fromPosition: Long,
-           numBytes: Int): Free[Par, Either[Throwable, Array[Byte]]] =
-    ???
+           numBytes: Int): Free[Par, Either[Throwable, Array[Byte]]] = {
+    val par = 
+    Free.Suspend(Par.async{ (callback: Either[Throwable, Array[Byte]] => Unit) =>
+      val buffer = new DirectByteBuffer(numBytes)
+      val handler = new CompletionHandler[Int, Unit]:
+        def completed(result: Int, attachment: Unit) =
+          val arr = new Array[Byte](result)
+          buf.slice.get(arr, 0, result)
+          cb(Right(arr))
+
+        def failed(exc: Throwable, attachment: Unit) = cb(Left(exc))
+
+    })
+  }
 
 end IO3
 
