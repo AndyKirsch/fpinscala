@@ -112,6 +112,8 @@ object Nonblocking:
      * through the implementation. What is the type of `p(es)`? What
      * about `t(es)`? What about `t(es)(cb)`?
      */
+    // par expansion ExecutorService => ((A => Unit) => Unit)
+    // Essentially the : is applying a function to the Future (which is a `(A => Unit) => Unit)`) returned by p(es)
     def choice[A](p: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
       es => cb => p(es): b =>
         if b then eval(es)(t(es)(cb))
