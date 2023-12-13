@@ -570,7 +570,7 @@ object IO3:
   import java.nio.*
   import java.nio.channels.*
 
-  def read(file: AsynchronousFileChannel,
+ /* def read(file: AsynchronousFileChannel,
            fromPosition: Long,
            numBytes: Int): Free[Par, Either[Throwable, Array[Byte]]] = {
     val par = 
@@ -585,7 +585,7 @@ object IO3:
         def failed(exc: Throwable, attachment: Unit) = cb(Left(exc))
 
     })
-  }
+  }*/
 
 end IO3
 

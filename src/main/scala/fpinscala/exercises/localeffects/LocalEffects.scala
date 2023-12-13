@@ -1,8 +1,11 @@
 package fpinscala.exercises.localeffects
 
-import scala.reflect.ClassTag
+import fpinscala.answers.localeffects.ST
 
+import scala.reflect.ClassTag
 import fpinscala.answers.monads.*
+
+import scala.collection.mutable
 
 object Mutable:
   def quicksort(xs: List[Int]): List[Int] =
@@ -82,9 +85,11 @@ final class STArray[S, A] private (private var value: Array[A]):
   // Turn the array into an immutable list
   def freeze: ST[S, List[A]] = ST(value.toList)
 
+  //opaque type ST[S, A] = S => (A, S)
   // Exercise 14.1
   def fill(xs: Map[Int, A]): ST[S, Unit] =
-    ???
+    xs.foldRight(ST[S, Unit](())):
+      case ((k, v), st) => st.flatMap(_ => write(k, v))
 
   def swap(i: Int, j: Int): ST[S, Unit] =
     for
@@ -103,13 +108,55 @@ object STArray:
     ST(new STArray[S, A](xs.toArray))
 
 object Immutable:
-  // Exercise 14.2
-  def partition[S](a: STArray[S, Int], l: Int, r: Int, pivot: Int): ST[S, Int] =
-    ???
+  /*
+  def partition(l: Int, r: Int, pivot: Int) =
+    val pivotVal = arr(pivot)
+    swap(pivot, r)
+    var j = l
+    for i <- l until r if arr(i) < pivotVal do
+      swap(i, j)
+      j += 1
+    swap(j, r)
+    j
+*/
 
   // Exercise 14.2
+  def partition[S](a: STArray[S, Int], l: Int, r: Int, pivot: Int): ST[S, Int] =
+
+    for
+      j <- STRef(l)
+      pivotVal <- a.read(pivot)
+      _ <- a.swap(pivot, r)
+      _ <- (l until r).foldLeft(ST[S, Unit](()))((s, i) =>
+        for
+          vi <- a.read(i)
+          _ <- if vi < pivotVal then
+            for
+              vj <- j.read
+              _ <- a.swap(i, vj)
+              _ <- j.write(vj + 1)
+            yield ()
+          else ST[S, Unit](())
+        yield ()
+      )
+      res <- j.read
+      _ <- a.swap(res, r)
+    yield res
+
+  // Exercise 14.2
+  /*
+   def qs(l: Int, r: Int): Unit =
+     if l < r then
+       val pi = partition(l, r, l + (r - l) / 2)
+       qs(l, pi - 1)
+       qs(pi + 1, r)
+    */
   def qs[S](a: STArray[S,Int], l: Int, r: Int): ST[S, Unit] =
-    ???
+  for
+    pi <- partition(a, l, r, l + (r - l) / 2)
+    _ <- qs(a, l, pi - 1)
+    _ <- qs(a, pi + 1, r)
+  yield ()
 
   def quicksort(xs: List[Int]): List[Int] =
     if xs.isEmpty then xs else ST.run([s] => () =>
@@ -120,3 +167,30 @@ object Immutable:
         sorted <- arr.freeze
       yield sorted
    )
+
+final class STMap[S, Key, Value] private (private var map: mutable.Map[Key, Value]):
+
+  def size: ST[S, Int] = ST(map.size)
+
+  // Write a value at the give index of the array
+  def write(key: Key, value: Value): ST[S, Unit] = ST.lift[S, Unit]:
+    s =>
+      map(key) = value
+      ((), s)
+
+  // Read the value at the given index of the array
+  def read(key: Key): ST[S, Value] = ST(map(key))
+
+  // Turn the array into an immutable list
+  def freeze: ST[S, Map[Key, Value]] = ST(map.toMap)
+
+  //opaque type ST[S, A] = S => (A, S)
+  // Exercise 14.1
+  def fill(xs: Map[Key, Value]): ST[S, Unit] =
+    xs.foldRight(ST[S, Unit](())):
+      case ((k, v), st) => st.flatMap(_ => write(k, v))
+
+
+object STMap:
+    def fromMap[S, Key, Value](xs: Map[Key, Value]): ST[S, STMap[S, Key, Value]] =
+    ST(new STMap[S, Key, Value](mutable.Map.from(xs)))
