@@ -99,17 +99,21 @@ enum Result:
 object Prop:
   def apply(f: (MaxSize, TestCases, RNG) => Result): Prop =
     (max, n, rng) => f(max, n, rng)
+
+    //opaque type State[S, +A] = S => (A, S)
+    //opaque type Gen[+A] = State[RNG, A]
+    // SGen[A] == Int => Gen[A]
+    // SGen[A] == Int => State[RNG, A]
+    // SGen[A] == Int => S => (A, S)
+    // Prop = (Int, Int, RNG) => Result
   @targetName("forAllSized")
   def forAll[A](g: SGen[A])(f: A => Boolean): Prop = (max, n, rng) =>
     val casesPerSize = (n.toInt - 1) /max.toInt + 1
     val props: LazyList[Prop] = LazyList.from(0).take((n.toInt min max.toInt) + 1).map(i => forAll(g(i))(f))
-
-      val list: List[Prop] = props.map[Prop](p => (max, n, rng) =>
-      p(max, casesPerSize, rng))
-        .toList
-    val prop: Prop = list
-        .reduce(_ && _)
-      prop(max, n, rng)
+    val list: List[Prop] = props.map[Prop](p => (max, n, rng) =>
+      p(max, casesPerSize, rng)).toList
+    val prop: Prop = list.reduce(_ && _)
+    prop(max, n, rng)
 
   def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop:
     (_, n, rng) =>
