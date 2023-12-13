@@ -35,12 +35,15 @@ object Nonblocking:
     def eval(es: ExecutorService)(r: => Unit): Unit =
       es.submit(new Callable[Unit] { def call = r })
 
-
+    ///opaque type Future[+A] =
+    //
+    //  opaque type Par[+A] = ExecutorService => (A => Unit) => Unit
     extension [A](p: Par[A])
       def run(es: ExecutorService): A =
         val ref = new AtomicReference[A] // A mutable, threadsafe reference, to use for storing the result
         val latch = new CountDownLatch(1) // A latch which, when decremented, implies that `ref` has the result
-        p(es) { a => ref.set(a); latch.countDown } // Asynchronously set the result, and decrement the latch
+        val firstFn: Future[A] = p(es)
+        firstFn { a => ref.set(a); latch.countDown } // Asynchronously set the result, and decrement the latch
         latch.await // Block until the `latch.countDown` is invoked asynchronously
         ref.get // Once we've passed the latch, we know `ref` has been set, and return its value
 
@@ -53,7 +56,7 @@ object Nonblocking:
           // forks evaluation of the callback `cb`
           val combiner = Actor[Either[A,B]](es):
             case Left(a) =>
-              if br.isDefined then eval(es)(cb(f(a, br.get)))
+              if br.isDefined then eval(es)(cb(f(a, br.get))) // cb(f(a, br.get))
               else ar = Some(a)
             case Right(b) =>
               if ar.isDefined then eval(es)(cb(f(ar.get, b)))
