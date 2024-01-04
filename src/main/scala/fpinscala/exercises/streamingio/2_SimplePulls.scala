@@ -3,6 +3,8 @@ package fpinscala.exercises.streamingio
 import fpinscala.answers.iomonad.{IO, Monad}
 import fpinscala.answers.monoids.Monoid
 
+import java.nio.file.{Files, Paths}
+
 object SimplePulls:
 
   enum Pull[+O, +R]:
@@ -52,15 +54,26 @@ object SimplePulls:
 
     // Exercise 15.3
     def drop(n: Int): Pull[O, R] =
-      ???
+      this.uncons.flatMap { _ match
+          case Left(r) => Result(r)
+          case Right((hd, tl)) =>
+            if n <= 0 then Output(hd) >> tl
+            else tl.drop(n - 1)
+      }
 
     // Exercise 15.3
     def takeWhile(f: O => Boolean): Pull[O, Pull[O, R]] =
-      ???
+      uncons.flatMap:
+        case Left(r) => Result(Result(r))
+        case Right((hd, tl)) if(f(hd)) => Output(hd) >> tl.takeWhile(f)
+        case Right((hd, tl)) => Result(Output(hd) >> tl)
     
     // Exercise 15.3
     def dropWhile(f: O => Boolean): Pull[Nothing, Pull[O, R]] =
-      ???
+      uncons.flatMap:
+        case Left(r) => Result(Result(r))
+        case Right((hd, tl)) if (f(hd)) => tl.dropWhile(f)
+        case Right((hd, tl)) => Result(Output(hd) >> tl)
 
     def mapOutput[O2](f: O => O2): Pull[O2, R] =
       uncons.flatMap:
@@ -84,7 +97,12 @@ object SimplePulls:
 
     // Exercise 15.4
     def tally[O2 >: O](using m: Monoid[O2]): Pull[O2, R] =
-      ???
+      uncons.flatMap {
+        case Left(r) => Result(r)
+        case Right((hd, tl)) =>
+          val newTotal = m.combine(hd, m.empty)
+          Output(newTotal) >> tl.tally(using m)
+      }
 
     def mapAccumulate[S, O2](init: S)(f: (S, O) => (S, O2)): Pull[O2, (S, R)] =
       uncons.flatMap:
@@ -95,11 +113,11 @@ object SimplePulls:
 
     // Exercise 15.6
     def countViaMapAccumulate: Pull[Int, R] =
-      ???
+      mapAccumulate(0){case (s, _) => s+1 -> (s+1)}.map(_._2)
 
     // Exercise 15.6
     def tallyViaMapAccumulate[O2 >: O](using m: Monoid[O2]): Pull[O2, R] =
-      ???
+      mapAccumulate(m.empty){case (s, o) => m.combine(s, o) -> m.combine(s, o)}.map(_._2)
 
   object Pull:
     val done: Pull[Nothing, Unit] = Result(())
@@ -121,11 +139,17 @@ object SimplePulls:
 
     // Exercise 15.1
     def fromListViaUnfold[O](os: List[O]): Pull[O, Unit] =
-      ???
+      unfold(os.iterator)(itr =>
+        if itr.hasNext then Right((itr.next(), itr))
+        else Left(itr)
+      ).void
 
     // Exercise 15.1
     def fromLazyListViaUnfold[O](os: LazyList[O]): Pull[O, Unit] =
-      ???
+      unfold(os.iterator)(itr =>
+        if itr.hasNext then Right((itr.next(), itr))
+        else Left(itr)
+      ).void
 
     def continually[O](o: O): Pull[O, Nothing] =
       Output(o) >> continually(o)
@@ -135,16 +159,34 @@ object SimplePulls:
 
     // Exercise 15.2
     def iterate[O](initial: O)(f: O => O): Pull[O, Nothing] =
-      ???
+      Output(initial) >> iterate(f(initial))(f)
 
     extension [R](self: Pull[Int, R])
       // Exercise 15.5
       def slidingMean(n: Int): Pull[Double, R] =
-        ???
+        def go(
+                window: collection.immutable.Queue[Int],
+                p: Pull[Int, R]
+              ): Pull[Double, R] =
+          p.uncons.flatMap:
+            case Left(r) => Result(r)
+            case Right((hd, tl)) =>
+              val newWindow = if window.size < n then window :+ hd
+              else window.tail :+ hd
+              val meanOfNewWindow = newWindow.sum / newWindow.size.toDouble
+              Output(meanOfNewWindow) >> go(newWindow, tl)
+
+        go(collection.immutable.Queue.empty, self)
 
       // Exercise 15.6
       def slidingMeanViaMapAccumulate(n: Int): Pull[Double, R] =
-        ???
+        self.mapAccumulate((collection.immutable.Queue.empty[Int], 0.0)) {
+          case ((window, _), hd) =>
+            val newWindow = if window.size < n then window :+ hd
+            else window.tail :+ hd
+            val meanOfNewWindow = newWindow.sum / newWindow.size.toDouble
+            ((newWindow, meanOfNewWindow), meanOfNewWindow)
+        }.map(_._2)
 
     given [O]: Monad[[x] =>> Pull[O, x]] with
       def unit[A](a: => A): Pull[O, A] = Result(a)
@@ -221,11 +263,15 @@ object SimplePullExamples:
 
   // Exercise 15.7
   def exists[I](f: I => Boolean): Pipe[I, Boolean] =
-    ???
+    input =>
+      val stuff = input.toPull.mapAccumulate(false){case (s, o) => (s || f(o), s || f(o))}
+        stuff.map(_._2).void.toStream
 
   // Exercise 15.7
   def existsHalting[I](f: I => Boolean): Pipe[I, Boolean] =
-    ???
+    input => (input.toPull.dropWhile(!f(_)).uncons.flatMap:
+      case Left(_) => Pull.done
+      case Right((hd, tl)) => Pull.Output(true)).void.toStream
 
   def countGt40K[I]: Pipe[I, Boolean] =
     count andThen existsHalting(_ > 40000)
@@ -250,5 +296,37 @@ object SimplePullExamples:
   def toCelsius(fahrenheit: Double): Double =
     (5.0 / 9.0) * (fahrenheit - 32.0)
 
+  def trimmed: Pipe[String, String] =
+    src => src.map(_.trim)
+
+  def nonComment: Pipe[String, String] =
+    src => src.filter(_.charAt(0) != '#')
+
+  def asDouble: Pipe[String, Double] =
+    src => src.flatMap: s =>
+      s.toDoubleOption match
+        case Some(d) => Stream(d)
+        case None => Stream()
+
+  def convertToCelsius: Pipe[Double, Double] =
+    src => src.map(toCelsius)
+
+  val conversion: Pipe[String, Double] =
+    trimmed andThen
+      nonEmpty andThen
+      nonComment andThen
+      asDouble andThen
+      convertToCelsius
   def convert(inputFile: String, outputFile: String): IO[Unit] =
-    ???
+    IO:
+      val source = scala.io.Source.fromFile(inputFile)
+      try
+        val writer = Files.newBufferedWriter(Paths.get(outputFile))
+        try
+          fromIterator(source.getLines)
+            .pipe(conversion)
+            .fold(()): (_, a) =>
+              writer.write(a.toString)
+              writer.newLine()
+        finally writer.close()
+      finally source.close()
