@@ -17,6 +17,7 @@ The library developed in this chapter goes through several iterations. This file
 shell, which you can fill in and modify while working through the chapter.
 */
 //opaque type State[S, +A] = S => (A, S)
+// gen[A] = RNG => (A, RNG)
 opaque type Gen[+A] = State[RNG, A]
 
 object Gen:
@@ -26,6 +27,7 @@ object Gen:
   def boolean: Gen[Boolean] = State(RNG.map(RNG.int){ i => if(i %2 == 0) true else false})
   def double: Gen[Double] = State(RNG.double)
 
+  // def lift[A](a: => A): Gen[A] = State(RNG.unit(a))
   def unit[A](a: => A): Gen[A] = State(RNG.unit(a))
 
   def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] =
@@ -40,6 +42,22 @@ object Gen:
       nums.foldLeft(Par.unit(0))((p, y) =>
         Par.fork(p.map2(Par.unit(y))(_ + _))))
 
+  /*
+  scala 2.13
+    implicit class GenOps[A](self: Gen[A]) {
+      def next(rng: RNG): (A, RNG) = self.run(rng)
+    }
+  
+    val genIn: Gen[Int] = ???
+    genIn.next(rng) secretly new GenOps(genIn).next(rng)
+  
+    object Foo {
+      def bar()(implicit stuff: Baz): Int = 42
+    }
+    implicit val baz: Baz = ???
+    Foo.bar()(baz)
+   */
+  
   extension [A](self: Gen[A])
     // We should use a different method name to avoid looping (not 'run')
     def next(rng: RNG): (A, RNG) = self.run(rng)
@@ -138,6 +156,7 @@ object Prop:
              ): Result =
       self(maxSize, testCases, rng)
 
+    // Prop = (MaxSize, TestCases, RNG) => Result
     def &&(that: Prop): Prop = (maxSize, cases, rng) =>
       val selfResult = self(maxSize, cases, rng)
       if(selfResult.isFalsified)
